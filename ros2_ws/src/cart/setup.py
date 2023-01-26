@@ -15,8 +15,8 @@ setup(
     zip_safe=True,
     maintainer='guest',
     maintainer_email='guest@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='cart navigation',
+    license='MIT License',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [

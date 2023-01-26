@@ -3,9 +3,9 @@
 <package format="3">
   <name>cart</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>cart navigation</description>
   <maintainer email="guest@todo.todo">guest</maintainer>
-  <license>TODO: License declaration</license>
+  <license>MIT License</license>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
