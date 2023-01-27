@@ -30,6 +30,9 @@ IPADDR = "192.168.0.120"
 PORT = 80
 
 
+def little_int(v, i):
+    return v[i] + 256 * v[i+1]
+
 def find_head(data):
     for i in range(len(data)):
         if data[i] == 0xAA and data[i+1] == 0x55:
@@ -104,16 +107,16 @@ class MinimalPublisher(Node):
             if len(data) < 10 + 2 * LSN:
                 break
 
-            FSA = int.from_bytes(data[4: 6], 'little')
-            LSA = int.from_bytes(data[6: 8], 'little')
-            CS  = int.from_bytes(data[8:10], 'little')
+            FSA = little_int(data, 4)
+            LSA = little_int(data, 6)
+            CS  = little_int(data, 8)
 
             assert CS == int(data[8]) + int(data[9]) * 256
 
             ranges = [0.0] * LSN
             cs = 0x55AA ^ (CT + LSN << 8) ^ FSA ^ LSA
             for i in range(LSN):
-                r = int.from_bytes(data[10 + 2 * i: 10 + 2 * i + 2], 'little')
+                r = little_int(data, 10 + 2 * i)
 
                 # X2 DEVELOPMENT MANUAL: Distance solution formula:
                 #   https://www.ydlidar.com/Public/upload/files/2022-06-21/YDLIDAR%20X2%20Development%20Manual%20V1.2(211228).pdf
