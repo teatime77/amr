@@ -24,6 +24,12 @@ docker run -v ~/prj/amr:/amr -it --rm --name fortress-c fortress /bin/bash
 ### docker内で実行
 
 ```sh
+cd /amr/ros2_ws/src
+ros2 pkg create --build-type ament_cmake cpp_cart
+```
+
+
+```sh
 cd /amr/ros2_ws
 ```
 
