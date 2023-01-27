@@ -56,8 +56,3 @@ RUN git clone https://github.com/teatime77/amr.git
 # ENV DISPLAY host.docker.internal:0.0
 ENV DISPLAY 192.168.0.109:0.0
 
-# RUN cp -r /opt/ros/humble/share/nav2_bringup .
-
-# docker build -t fortress .
-
-# ros2 launch nav2_bringup/launch/tb3_simulation_launch.py headless:=False

@@ -14,12 +14,13 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='guest',
-    maintainer_email='guest@todo.todo',
+    maintainer_email='teatime77@live.jp',
     description='cart navigation',
     license='MIT License',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'talker = cart.publisher:main',
         ],
     },
 )
