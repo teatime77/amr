@@ -189,7 +189,7 @@ class MinimalPublisher(Node):
 
         # self.get_logger().info('Publishing: "%s"' % msg.data)
         # self.get_logger().info('Publishing: "%d"' % self.i)
-        self.get_logger().info(f'LSN:{LSN} angle:{round(FSA)} - {round(LSA)}')
+        self.get_logger().info(f'LSN:{LSN} angle:{round(FSA)} - {round(LSA)} LSN:{LSN}')
 
         self.prev_time = current_time
         self.i += 1
