@@ -40,7 +40,7 @@ rosdep install -i --from-path src --rosdistro humble -y
 
 cartパッケージをビルドします。
 ```sh
-colcon build --packages-select cart
+colcon build --packages-select cpp_cart
 ```
 
 cartパッケージの実行に必要な環境変数を読み込みます。
@@ -50,5 +50,5 @@ cartパッケージの実行に必要な環境変数を読み込みます。
 
 cartパッケージを実行します。
 ```sh
-ros2 launch launch/cart_launch.py headless:=False
+ros2 launch launch/cpp_cart_launch.py headless:=False
 ```

@@ -114,7 +114,7 @@ class MinimalPublisher(Node):
             assert CS == int(data[8]) + int(data[9]) * 256
 
             ranges = [0.0] * LSN
-            cs = 0x55AA ^ (CT + LSN << 8) ^ FSA ^ LSA
+            cs = 0x55AA ^ little_int(data, 2) ^ FSA ^ LSA
             for i in range(LSN):
                 r = little_int(data, 10 + 2 * i)
 
@@ -128,7 +128,8 @@ class MinimalPublisher(Node):
             FSA = (FSA >> 1) / 64.0
             LSA = (LSA >> 1) / 64.0
             # print()
-            # self.get_logger().info(f'head {hex(data[2])} {LSN} angle:{round(FSA)} - {round(LSA)} {CS - cs}')
+            # self.get_logger().info(f'head {hex(data[2])} {LSN} angle:{round(FSA)} - {round(LSA)} CS:{CS - cs}')
+            assert CS == cs
 
             data = data[10 + 2 * LSN:]
 
