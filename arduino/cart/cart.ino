@@ -44,6 +44,11 @@ struct IMUdata {
     float temp;
 };
 
+struct EncoderData {
+    char  mark[4];
+    int   counts[2];
+};
+
 const char* ssid = "TP-Link_9457";
 const char* password = "17318860";
 
@@ -198,13 +203,23 @@ void loop() {
 
                     imu_dt.temp   = temp.temperature;
 
-                    client.write(buf2, gap);
-
-                    client.write((const char*)&imu_dt, sizeof(imu_dt));
-
-                    client.write(buf2 + gap, sz - gap);
-
                     Serial.printf("IMU:%d acc:(%.1f, %.1f, %.1f) gyro:(%.1f, %.1f, %.1f) temp:%.1f\n", sizeof(IMUdata), imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, imu_dt.temp);
+
+                    EncoderData enc_dt;
+
+                    enc_dt.mark[0] = 0xCC;
+                    enc_dt.mark[1] = 0x77;
+                    enc_dt.mark[2] = 0xCC;
+                    enc_dt.mark[3] = 0x77;
+
+                    get_encoder_counts(enc_dt.counts[0], enc_dt.counts[1]);
+
+                    Serial.printf("enc %d %d\n", enc_dt.counts[0], enc_dt.counts[1]);
+
+                    client.write(buf2, gap);
+                    client.write((const char*)&imu_dt, sizeof(imu_dt));
+                    client.write((const char*)&enc_dt, sizeof(enc_dt));
+                    client.write(buf2 + gap, sz - gap);
                 }
             }
         }

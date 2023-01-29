@@ -10,14 +10,19 @@
 #define ML_A 25
 #define ML_B 33
 
-int counts[] = { 0, 0 };
+int encoder_counts[] = { 0, 0 };
 
 void IRAM_ATTR falling_MR_A() {
-    counts[0] += digitalRead(MR_B) == LOW ? 1 : -1;
+    encoder_counts[0] += digitalRead(MR_B) == LOW ? 1 : -1;
 }
 
 void IRAM_ATTR falling_ML_A() {
-    counts[1] += digitalRead(ML_B) == LOW ? 1 : -1;
+    encoder_counts[1] += digitalRead(ML_B) == LOW ? 1 : -1;
+}
+
+void get_encoder_counts(int &c1, int &c2){
+    c1 = encoder_counts[0];
+    c2 = encoder_counts[1];
 }
 
 void motor_setup() {
@@ -38,7 +43,7 @@ void motor_setup() {
     attachInterrupt(MR_A, falling_MR_A, FALLING);
     attachInterrupt(ML_A, falling_ML_A, FALLING);
 
-    counts[0] = counts[1] = 0;
+    encoder_counts[0] = encoder_counts[1] = 0;
 
     // testing
     Serial.print("Testing DC Motor...");

@@ -47,6 +47,11 @@ struct IMUdata {
     float temp;
 };
 
+struct EncoderData {
+    char  mark[4];
+    int   counts[2];
+};
+
 int little_int(BYTE* dt, int idx){
     return int(dt[idx] + 256 * (int)dt[idx + 1]);
 }
@@ -225,6 +230,10 @@ public:
                 data_type = DataType::imu;
                 return i;
             }
+            else if(data[i] == 0xCC && data[i + 1] == 0x77 && i + int(sizeof(EncoderData)) < dataCnt){
+                data_type = DataType::encoder;
+                return i;
+            }
         }
 
         return -1;
@@ -273,6 +282,16 @@ private:
                     imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, 
                     imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, 
                     imu_dt.temp);
+                break;
+            }            
+
+            case DataType::encoder:{
+                EncoderData enc_dt;
+                
+                data_len = sizeof(EncoderData);
+                memcpy(&enc_dt, data + idx, data_len);
+
+                RCLCPP_INFO(this->get_logger(), "enc: %d %d", enc_dt.counts[0], enc_dt.counts[1]);
                 break;
             }            
             default:
