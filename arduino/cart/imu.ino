@@ -1,9 +1,5 @@
 // Basic demo for accelerometer readings from Adafruit MPU6050
 
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <Wire.h>
-
 Adafruit_MPU6050 mpu;
 
 void imu_setup(void) {
@@ -85,7 +81,11 @@ void imu_setup(void) {
   delay(100);
 }
 
-void imu_loop() {
+void imu_loop(sensors_event_t &acc, sensors_event_t &gyro, sensors_event_t &temp) {
+    mpu.getEvent(&acc, &gyro, &temp);
+}
+
+void imu_loop2() {
 
   /* Get new sensor events with the readings */
   sensors_event_t a, g, temp;

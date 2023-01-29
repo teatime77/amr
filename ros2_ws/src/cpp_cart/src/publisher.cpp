@@ -30,6 +30,23 @@ using namespace std::chrono_literals;
 
 #define RANGES_SIZE     1024 * 8
 
+enum DataType {
+    ydlidar,
+    imu,
+    encoder
+};
+
+struct IMUdata {
+    char  mark[4];    
+    float acc_x;
+    float acc_y;
+    float acc_z;
+    float gyro_x;
+    float gyro_y;
+    float gyro_z;
+    float temp;
+};
+
 int little_int(BYTE* dt, int idx){
     return int(dt[idx] + 256 * (int)dt[idx + 1]);
 }
@@ -143,6 +160,7 @@ public:
 
         float FSA = (iFSA >> 1) / 64.0;
         float LSA = (iLSA >> 1) / 64.0;
+        RCLCPP_INFO(this->get_logger(), "CT:%X FSA:%d LSA:%d", dt[2], int(FSA), int(LSA));
 
         if(LSA <= FSA){
             return;
@@ -189,18 +207,23 @@ public:
         assert(nRanges < RANGES_SIZE);
     }
 
-    int find_head(){
+    int find_head(DataType& data_type){
         for(int i = 0; i < dataCnt - 10; i++){
-            if(data[i] == 0xAA and data[i + 1] == 0x55){
+            if(data[i] == 0xAA && data[i + 1] == 0x55){
 
                 int LSN = data[i + 3];
                 if(i + 10 + 2 * LSN <= dataCnt){
 
+                    data_type = DataType::ydlidar;
                     return i;
                 }
                 else{
                     return -1;
                 }
+            }
+            else if(data[i] == 0xBB && data[i + 1] == 0x66 && i + int(sizeof(IMUdata)) < dataCnt){
+                data_type = DataType::imu;
+                return i;
             }
         }
 
@@ -220,16 +243,43 @@ private:
         dataCnt += size;
 
         while (10 <= dataCnt){
-            int idx = find_head();
+            DataType data_type;
+
+            int idx = find_head(data_type);
 
             if(idx == -1){
                 return;
             }
 
-            int LSN = data[idx + 3];
-            readHead(data + idx, LSN);
+            int data_len;
 
-            int data_len = 10 + 2 * LSN;
+            switch (data_type){
+            case DataType::ydlidar:{
+
+                int LSN = data[idx + 3];
+                readHead(data + idx, LSN);
+
+                data_len = 10 + 2 * LSN;
+                break;
+            }
+
+            case DataType::imu:{
+                IMUdata imu_dt;
+                
+                data_len = sizeof(IMUdata);
+                memcpy(&imu_dt, data + idx, data_len);
+
+                RCLCPP_INFO(this->get_logger(), "acc:(%.1f, %.1f, %.1f) gyro:(%.1f, %.1f, %.1f) temp:%.1f", 
+                    imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, 
+                    imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, 
+                    imu_dt.temp);
+                break;
+            }            
+            default:
+                assert(false);
+                break;
+            }
+
             memmove(data, data + idx + data_len, dataCnt - (idx + data_len));
             dataCnt -= idx + data_len;
         }

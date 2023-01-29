@@ -26,9 +26,23 @@ ported for sparkfun esp32
  */
 
 #include <WiFi.h>
+#include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
+#include <Wire.h>
 
 #define LED_BUILTIN 2
 #define BUF_SZ 1024
+
+struct IMUdata {
+    char  mark[4];    
+    float acc_x;
+    float acc_y;
+    float acc_z;
+    float gyro_x;
+    float gyro_y;
+    float gyro_z;
+    float temp;
+};
 
 const char* ssid = "TP-Link_9457";
 const char* password = "17318860";
@@ -151,11 +165,47 @@ void loop() {
                 uint8_t buf2[BUF_SZ];
 
                 size_t sz = Serial2.readBytes(buf2, BUF_SZ);
-                // if (buf_len + sz < BUF_SZ) {
-                //     memcpy(buf1 + buf_len, buf2, sz);
-                //     buf_len += sz;
-                // }
-                client.write(buf2, sz);
+
+                int gap = -1;
+                for(int i = 0; i < sz - 3; i++){
+                    if(buf2[i] == 0xAA && buf2[i + 1] == 0x55 && buf2[i + 2] == 1){
+                        gap = i;
+                        break;
+                    }
+                }
+                if(gap == -1){
+
+                    client.write(buf2, sz);
+                }
+                else{
+                    sensors_event_t acc, gyro, temp;
+                    IMUdata imu_dt;
+
+                    imu_loop(acc, gyro, temp);
+
+                    imu_dt.mark[0] = 0xBB;
+                    imu_dt.mark[1] = 0x66;
+                    imu_dt.mark[2] = 0xBB;
+                    imu_dt.mark[3] = 0x66;
+
+                    imu_dt.acc_x = acc.acceleration.x;
+                    imu_dt.acc_y = acc.acceleration.y;
+                    imu_dt.acc_z = acc.acceleration.z;
+
+                    imu_dt.gyro_x = gyro.gyro.x;
+                    imu_dt.gyro_y = gyro.gyro.y;
+                    imu_dt.gyro_z = gyro.gyro.z;
+
+                    imu_dt.temp   = temp.temperature;
+
+                    client.write(buf2, gap);
+
+                    client.write((const char*)&imu_dt, sizeof(imu_dt));
+
+                    client.write(buf2 + gap, sz - gap);
+
+                    Serial.printf("IMU:%d acc:(%.1f, %.1f, %.1f) gyro:(%.1f, %.1f, %.1f) temp:%.1f\n", sizeof(IMUdata), imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, imu_dt.temp);
+                }
             }
         }
 
@@ -166,5 +216,6 @@ void loop() {
     }
 
     motor_loop();
-    imu_loop();
+
+
 }
