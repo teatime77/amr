@@ -80,7 +80,11 @@ void setup() {
     // We start by connecting to a WiFi network
 
     start_server();
+
+    motor_setup();
 }
+
+WiFiClient client;
 
 void loop() {
     if (WiFi.status() != WL_CONNECTED) {
@@ -95,21 +99,26 @@ void loop() {
         }
         Serial.println("");
 
-
         return;
     }
 
-    WiFiClient client = server.available();  // listen for incoming clients
+    if(! client){
+
+        client = server.available();  // listen for incoming clients
+        if (client){
+
+            Serial.println("New Client.");
+        }
+    }
 
     if (client) {
-        Serial.println("New Client.");
         String currentLine = "";
         uint8_t buf1[BUF_SZ];
         uint8_t cmd[256];
         int idx = 0;
         int buf_len = 0;
 
-        while (client.connected()) {     // loop while the client's connected
+        if(client.connected()) {     // loop while the client's connected
             if (client.available()) {    // if there's bytes to read from the client,
                 char c = client.read();  // read a byte, then
                 Serial.write(c);         // print it out the serial monitor
@@ -149,9 +158,11 @@ void loop() {
             }
         }
 
-        delay(3000);
-        // close the connection:
-        client.stop();
-        Serial.println("Client Disconnected.");
+        // delay(3000);
+        // // close the connection:
+        // client.stop();
+        // Serial.println("Client Disconnected.");
     }
+
+    motor_loop();
 }

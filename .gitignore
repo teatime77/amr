@@ -1,5 +1,6 @@
-build
-install
-log
-.vscode
-**/__pycache__
+ros2_ws/build/
+arduino/cart/build/
+install/
+log/
+.vscode/
+**/__pycache__/
