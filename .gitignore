@@ -1,5 +1,6 @@
 ros2_ws/build/
 arduino/cart/build/
+arduino/libraries/
 install/
 log/
 .vscode/

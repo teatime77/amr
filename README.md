@@ -52,3 +52,12 @@ cartパッケージを実行します。
 ```sh
 ros2 launch launch/cpp_cart_launch.py headless:=False
 ```
+
+## Arduino IDE
+
+[ツール]-[ライブラリーを管理] を開く。
+**Adafruit MPU6050** で検索します。
+
+**Adafruit MPU6050 by Adafruit** をインストールします。
+
+「ライブラリの依存関係をインストール」のダイアログが表示されるので、「全てをインストール」をクリックします。

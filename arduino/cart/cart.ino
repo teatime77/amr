@@ -82,6 +82,7 @@ void setup() {
     start_server();
 
     motor_setup();
+    imu_setup();
 }
 
 WiFiClient client;
@@ -165,4 +166,5 @@ void loop() {
     }
 
     motor_loop();
+    imu_loop();
 }
