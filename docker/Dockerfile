@@ -23,6 +23,22 @@ RUN apt-get install -y ros-humble-navigation2
 RUN apt-get install -y ros-humble-nav2-bringup
 RUN apt-get install -y ros-humble-turtlebot3*
 
+# Setting Up The URDF — Navigation 2 1.0.0 documentation
+#   https://navigation.ros.org/setup_guides/urdf/setup_urdf.html#build-and-launch
+RUN apt-get update
+RUN apt-get install -y ros-humble-joint-state-publisher-gui
+RUN apt-get install -y ros-humble-xacro
+
+# Setting Up Odometry — Navigation 2 1.0.0 documentation
+#   https://navigation.ros.org/setup_guides/odom/setup_odom.html#odometry-introduction
+# RUN apt-get install -y ros-humble-gazebo-ros-pkgs
+# ros-humble-gazebo-ros-pkgs is already the newest version (3.7.0-1jammy.20221207.063740).
+# ros-humble-gazebo-ros-pkgs set to manually installed.
+
+# Setting Up Odometry — Navigation 2 1.0.0 documentation
+#   https://navigation.ros.org/setup_guides/odom/setup_odom.html#odometry-introduction
+RUN apt-get install -y ros-humble-robot-localization
+
 RUN useradd -m -s /bin/bash -G sudo -p '' guest
 USER guest
 
@@ -33,15 +49,6 @@ SHELL ["/bin/bash", "-c"]
 RUN source ~/.bashrc
 RUN rosdep update
 
-# RUN mkdir -p ~/ros2_ws/src
-# RUN . /opt/ros/humble/setup.sh && \
-#     cd ~/ros2_ws/src && \
-#     ros2 pkg create --build-type ament_python py_pubsub
-
-# RUN cd ~/ros2_ws && rosdep install -i --from-path src --rosdistro humble -y
-# RUN cd ~/ros2_ws && colcon build --packages-select py_pubsub
-
-
 # [Solved] Problem to launch rosbot_navigation_sim.launch.py
 #   https://community.husarion.com/t/solved-problem-to-launch-rosbot-navigation-sim-launch-py/1258/2
 RUN echo "source /usr/share/gazebo/setup.sh" >> ~/.bashrc
@@ -50,8 +57,6 @@ RUN echo "export TURTLEBOT3_MODEL=waffle" >> ~/.bashrc
 RUN echo "export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models" >> ~/.bashrc
 
 WORKDIR /home/guest
-
-RUN git clone https://github.com/teatime77/amr.git
 
 # ENV DISPLAY host.docker.internal:0.0
 ENV DISPLAY 192.168.0.109:0.0
