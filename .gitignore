@@ -1,8 +1,10 @@
 ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
 nav2_ws/build/
+nav2_ws/install/
+nav2_ws/log/
 arduino/cart/build/
 arduino/libraries/
-install/
-log/
 .vscode/
 **/__pycache__/
