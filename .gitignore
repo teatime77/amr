@@ -1,4 +1,5 @@
 ros2_ws/build/
+nav2_ws/build/
 arduino/cart/build/
 arduino/libraries/
 install/
