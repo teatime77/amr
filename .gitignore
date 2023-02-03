@@ -8,3 +8,5 @@ arduino/cart/build/
 arduino/libraries/
 .vscode/
 **/__pycache__/
+nav2_ws/frames_2023-01-31_02.50.29.pdf
+nav2_ws/frames_2023-01-31_02.50.29.gv

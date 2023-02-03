@@ -39,6 +39,10 @@ RUN apt-get install -y ros-humble-xacro
 #   https://navigation.ros.org/setup_guides/odom/setup_odom.html#odometry-introduction
 RUN apt-get install -y ros-humble-robot-localization
 
+# Setting Up Sensors — Navigation 2 1.0.0 documentation
+#   https://navigation.ros.org/setup_guides/sensors/setup_sensors.html#id2
+RUN apt-get install -y ros-humble-slam-toolbox
+
 RUN useradd -m -s /bin/bash -G sudo -p '' guest
 USER guest
 
