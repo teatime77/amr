@@ -4,9 +4,13 @@ ros2_ws/log/
 nav2_ws/build/
 nav2_ws/install/
 nav2_ws/log/
+test_ws/build/
+test_ws/install/
+test_ws/log/
 arduino/cart/build/
 arduino/libraries/
 .vscode/
 **/__pycache__/
 nav2_ws/frames_2023-01-31_02.50.29.pdf
 nav2_ws/frames_2023-01-31_02.50.29.gv
+control_ws

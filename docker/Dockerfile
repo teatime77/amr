@@ -43,6 +43,15 @@ RUN apt-get install -y ros-humble-robot-localization
 #   https://navigation.ros.org/setup_guides/sensors/setup_sensors.html#id2
 RUN apt-get install -y ros-humble-slam-toolbox
 
+# ros2_control/Dockerfile at master · ros-controls/ros2_control
+#   https://github.com/ros-controls/ros2_control/blob/master/.docker/release/Dockerfile
+# ARG ROS_DISTRO="humble"
+# RUN apt-get update && \
+#     apt-get install -y ros-${ROS_DISTRO}-ros2-control ros-${ROS_DISTRO}-ros2-controllers && \
+#     rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update
+
 RUN useradd -m -s /bin/bash -G sudo -p '' guest
 USER guest
 
@@ -59,6 +68,19 @@ RUN echo "source /usr/share/gazebo/setup.sh" >> ~/.bashrc
 
 RUN echo "export TURTLEBOT3_MODEL=waffle" >> ~/.bashrc
 RUN echo "export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models" >> ~/.bashrc
+
+RUN mkdir -p ~/control_ws/src
+# RUN cd ~/control_ws/src && git clone -b humble https://github.com/ros-controls/ros2_control.git
+
+WORKDIR /home/guest/control_ws/src
+RUN git clone -b humble https://github.com/ros-controls/ros2_control
+RUN git clone -b humble https://github.com/ros-controls/ros2_controllers
+RUN git clone https://github.com/ros-controls/ros2_control_demos
+
+WORKDIR /home/guest/control_ws
+RUN source /opt/ros/humble/setup.bash && rosdep install -i --from-path src --rosdistro humble -y
+RUN source /opt/ros/humble/setup.bash && colcon build --symlink-install
+RUN echo "source ~/control_ws/install/setup.bash" >> ~/.bashrc
 
 WORKDIR /home/guest
 
