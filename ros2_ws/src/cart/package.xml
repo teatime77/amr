@@ -4,7 +4,7 @@
   <name>cart</name>
   <version>0.0.0</version>
   <description>cart navigation</description>
-  <maintainer email="teatime77@live.jp">guest</maintainer>
+  <maintainer email="teatime77@live.jp">teatime77</maintainer>
   <license>MIT License</license>
 
   <exec_depend>rclpy</exec_depend>

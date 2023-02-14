@@ -4,7 +4,7 @@
   <name>cpp_cart</name>
   <version>0.0.0</version>
   <description>cart navigation</description>
-  <maintainer email="teatime77@live.jp">guest</maintainer>
+  <maintainer email="teatime77@live.jp">teatime77</maintainer>
   <license>MIT License</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

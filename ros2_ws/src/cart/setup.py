@@ -13,7 +13,7 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='guest',
+    maintainer='teatime77',
     maintainer_email='teatime77@live.jp',
     description='cart navigation',
     license='MIT License',

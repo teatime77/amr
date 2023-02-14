@@ -13,13 +13,14 @@ setup(
     ],
     install_requires=['setuptools'],
     zip_safe=True,
-    maintainer='guest',
-    maintainer_email='guest@todo.todo',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    maintainer='teatime77',
+    maintainer_email='teatime77@live.jp',
+    description='cart GUI',
+    license='MIT License',
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'talker = cart_gui.cart_gui:main',
         ],
     },
 )
