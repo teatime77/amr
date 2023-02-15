@@ -13,9 +13,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(cart_interfaces REQUIRED)
 
 add_executable(talker src/publisher.cpp)
-ament_target_dependencies(talker rclcpp sensor_msgs)
+ament_target_dependencies(talker rclcpp sensor_msgs cart_interfaces)
 
 install(TARGETS
   talker

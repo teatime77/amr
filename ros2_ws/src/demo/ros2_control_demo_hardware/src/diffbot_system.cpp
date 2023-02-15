@@ -19,9 +19,44 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <cstdlib>
 
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
+#include "cart_interfaces/srv/motor_pwm.hpp"
+
+rclcpp::Client<cart_interfaces::srv::MotorPWM>::SharedPtr  client;
+std::shared_ptr<rclcpp::Node> node;
+
+void init_client(){
+    node   = rclcpp::Node::make_shared("set_motor_pwm_client");
+    client = node->create_client<cart_interfaces::srv::MotorPWM>("set_motor_pwm");
+
+      RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "init client");
+}
+
+void call_server(){
+    auto request = std::make_shared<cart_interfaces::srv::MotorPWM::Request>();
+    request->left  = 1.2;
+    request->right = 3.4;
+
+    while (!client->wait_for_service()) {
+        if (!rclcpp::ok()) {
+            RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Interrupted while waiting for the service. Exiting.");
+            return;
+        }
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "service not available, waiting again...");
+    }
+
+    auto result = client->async_send_request(request);
+    // Wait for the result.
+    if (rclcpp::spin_until_future_complete(node, result) == rclcpp::FutureReturnCode::SUCCESS){
+        RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Set PWM OK:");
+    } 
+    else {
+        RCLCPP_ERROR(rclcpp::get_logger("rclcpp"), "Failed to call service add_two_ints");
+    }
+}
 
 namespace ros2_control_demo_hardware
 {
@@ -95,6 +130,8 @@ hardware_interface::CallbackReturn DiffBotSystemHardware::on_init(
       return hardware_interface::CallbackReturn::ERROR;
     }
   }
+
+  init_client();
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -188,10 +225,10 @@ hardware_interface::return_type DiffBotSystemHardware::read(
     hw_velocities_[i] = hw_commands_[i];
 
     // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
-    RCLCPP_INFO(
-      rclcpp::get_logger("DiffBotSystemHardware"),
-      "Got position state %.5f and velocity state %.5f for '%s'!", hw_positions_[i],
-      hw_velocities_[i], info_.joints[i].name.c_str());
+    // RCLCPP_INFO(
+    //   rclcpp::get_logger("DiffBotSystemHardware"),
+    //   "Got position state %.5f and velocity state %.5f for '%s'!", hw_positions_[i],
+    //   hw_velocities_[i], info_.joints[i].name.c_str());
     // END: This part here is for exemplary purposes - Please do not copy to your production code
   }
 
@@ -205,9 +242,9 @@ hardware_interface::return_type DiffBotSystemHardware::read(
   base_theta_ += base_dtheta * period.seconds();
 
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
-  RCLCPP_INFO(
-    rclcpp::get_logger("DiffBotSystemHardware"), "Joints successfully read! (%.5f,%.5f,%.5f)",
-    base_x_, base_y_, base_theta_);
+  // RCLCPP_INFO(
+  //   rclcpp::get_logger("DiffBotSystemHardware"), "Joints successfully read! (%.5f,%.5f,%.5f)",
+  //   base_x_, base_y_, base_theta_);
   // END: This part here is for exemplary purposes - Please do not copy to your production code
 
   return hardware_interface::return_type::OK;
@@ -217,17 +254,18 @@ hardware_interface::return_type ros2_control_demo_hardware::DiffBotSystemHardwar
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
-  RCLCPP_INFO(rclcpp::get_logger("DiffBotSystemHardware"), "Writing...");
+  // RCLCPP_INFO(rclcpp::get_logger("DiffBotSystemHardware"), "Writing...");
 
   for (auto i = 0u; i < hw_commands_.size(); i++)
   {
     // Simulate sending commands to the hardware
-    RCLCPP_INFO(
-      rclcpp::get_logger("DiffBotSystemHardware"), "Got command %.5f for '%s'!", hw_commands_[i],
-      info_.joints[i].name.c_str());
+    // RCLCPP_INFO(
+    //   rclcpp::get_logger("DiffBotSystemHardware"), "Got command %.5f for '%s'!", hw_commands_[i],
+    //   info_.joints[i].name.c_str());
   }
-  RCLCPP_INFO(rclcpp::get_logger("DiffBotSystemHardware"), "Joints successfully written!");
+  // RCLCPP_INFO(rclcpp::get_logger("DiffBotSystemHardware"), "Joints successfully written!");
   // END: This part here is for exemplary purposes - Please do not copy to your production code
+  call_server();
 
   return hardware_interface::return_type::OK;
 }

@@ -18,6 +18,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "cart_interfaces/srv/motor_pwm.hpp"
 
 using namespace std::chrono_literals;
 
@@ -56,6 +57,12 @@ int little_int(BYTE* dt, int idx){
     return int(dt[idx] + 256 * (int)dt[idx + 1]);
 }
 
+void add(const std::shared_ptr<cart_interfaces::srv::MotorPWM::Request> request,
+          std::shared_ptr<cart_interfaces::srv::MotorPWM::Response>      /*response*/){
+  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request\nleft: %f" " right: %f",
+                request->left, request->right);
+}
+
 class MinimalPublisher : public rclcpp::Node
 {
     int sockfd;
@@ -70,6 +77,8 @@ class MinimalPublisher : public rclcpp::Node
 
     clock_t startTime;
     clock_t prevTime;
+
+    rclcpp::Service<cart_interfaces::srv::MotorPWM>::SharedPtr service;
 
 public:
     MinimalPublisher()
@@ -116,6 +125,8 @@ public:
 
 
         RCLCPP_INFO(this->get_logger(), "send '%d'", size);
+
+        service = this->create_service<cart_interfaces::srv::MotorPWM>("set_motor_pwm", &add);
 
         startTime = clock();
     }
