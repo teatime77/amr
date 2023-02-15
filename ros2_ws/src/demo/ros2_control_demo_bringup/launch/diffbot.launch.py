@@ -96,12 +96,24 @@ def generate_launch_description():
         )
     )
 
+    tf2_node = Node(package='tf2_ros',
+        executable='static_transform_publisher',
+        arguments=['0', '0', '0.02','0', '0', '0', '1','base_link','laser_frame'],
+    )
+
+    cart_node = Node(
+        package='cpp_cart',
+        executable='talker',
+    )
+
     nodes = [
         control_node,
         robot_state_pub_node,
         joint_state_broadcaster_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
         delay_robot_controller_spawner_after_joint_state_broadcaster_spawner,
+        cart_node,
+        tf2_node,
     ]
 
     return LaunchDescription(nodes)
