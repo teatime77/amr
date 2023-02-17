@@ -46,6 +46,7 @@ struct IMUdata {
 
 struct EncoderData {
     char  mark[4];
+    int   msec;    
     int   counts[2];
 };
 
@@ -132,37 +133,47 @@ void loop() {
     }
 
     if (client) {
-        String currentLine = "";
-        uint8_t buf1[BUF_SZ];
-        uint8_t cmd[256];
+        uint8_t cmd[6];
         int idx = 0;
-        int buf_len = 0;
 
         if(client.connected()) {     // loop while the client's connected
-            if (client.available()) {    // if there's bytes to read from the client,
+            while(client.available()) {    // if there's bytes to read from the client,
                 char c = client.read();  // read a byte, then
-                Serial.write(c);         // print it out the serial monitor
 
-                if (idx < 256) {
+                switch(idx){
+                case 0:
+                    if(c == '\xFF'){
+                        idx++
+                        ;
+                        digitalWrite(LED_BUILTIN, HIGH);
+                    }
+                    break;                    
+                case 1:
+                    if(c == '\xEE'){
+                        idx++;
+                    }
+                    else{
+                        idx = 0;
+                    }
+                    break;
+
+                default:
                     cmd[idx] = c;
+
                     idx++;
-                }
+                    if(idx == 2 + 2 + 2){
+                        short pwm_l = *(short*)(cmd + 2);
+                        short pwm_r = *(short*)(cmd + 4);
 
-                if (c == '\n') {
+                        Serial.printf("PWM %d %d\n", pwm_l, pwm_r);
 
-                    // char cbuf[256];
-                    // sprintf(cbuf, "%d", buf_len);
-                    // client.print(cbuf);
-                    // client.write(buf1, buf_len);
-                    buf_len = 0;
-                    idx = 0;
-                    currentLine = "";
+                        if(-255 <= pwm_l && pwm_l <= 255 && -255 <= pwm_r && pwm_r <= 255){
+                            motor_loop(pwm_l, pwm_r);
+                        }
 
-                    digitalWrite(LED_BUILTIN, LOW);
-                } else {
-                    currentLine += c;
-
-                    digitalWrite(LED_BUILTIN, HIGH);
+                        idx = 0;
+                        digitalWrite(LED_BUILTIN, LOW);
+                    }
                 }
             }
 
@@ -212,9 +223,9 @@ void loop() {
                     enc_dt.mark[2] = 0xCC;
                     enc_dt.mark[3] = 0x77;
 
-                    get_encoder_counts(enc_dt.counts[0], enc_dt.counts[1]);
+                    get_encoder_counts(enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
 
-                    Serial.printf("enc %d %d\n", enc_dt.counts[0], enc_dt.counts[1]);
+                    Serial.printf("enc %d msec %d %d\n", enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
 
                     client.write(buf2, gap);
                     client.write((const char*)&imu_dt, sizeof(imu_dt));
@@ -229,8 +240,4 @@ void loop() {
         // client.stop();
         // Serial.println("Client Disconnected.");
     }
-
-    motor_loop();
-
-
 }
