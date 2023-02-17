@@ -69,13 +69,13 @@ RUN echo "source /usr/share/gazebo/setup.sh" >> ~/.bashrc
 RUN echo "export TURTLEBOT3_MODEL=waffle" >> ~/.bashrc
 RUN echo "export GAZEBO_MODEL_PATH=$GAZEBO_MODEL_PATH:/opt/ros/humble/share/turtlebot3_gazebo/models" >> ~/.bashrc
 
+# ros-controls/ros2_control_demos
+#   https://github.com/ros-controls/ros2_control_demos#build-from-source
 RUN mkdir -p ~/control_ws/src
-# RUN cd ~/control_ws/src && git clone -b humble https://github.com/ros-controls/ros2_control.git
-
 WORKDIR /home/guest/control_ws/src
 RUN git clone -b humble https://github.com/ros-controls/ros2_control
 RUN git clone -b humble https://github.com/ros-controls/ros2_controllers
-RUN git clone https://github.com/ros-controls/ros2_control_demos
+# RUN git clone https://github.com/ros-controls/ros2_control_demos
 
 WORKDIR /home/guest/control_ws
 RUN source /opt/ros/humble/setup.bash && rosdep install -i --from-path src --rosdistro humble -y
