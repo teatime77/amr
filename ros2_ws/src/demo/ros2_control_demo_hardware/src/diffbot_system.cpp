@@ -37,8 +37,8 @@ void init_client(){
 
 void call_server(){
     auto request = std::make_shared<cart_interfaces::srv::MotorPWM::Request>();
-    request->left  = 1.2;
-    request->right = 3.4;
+    request->left  = 12;
+    request->right = -34;
 
     while (!client->wait_for_service()) {
         if (!rclcpp::ok()) {

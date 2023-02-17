@@ -20,6 +20,9 @@
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "cart_interfaces/srv/motor_pwm.hpp"
 
+void init_qt(int argc, char * argv[]);
+void process_qt(short& pwm_l, short& pwm_r);
+
 using namespace std::chrono_literals;
 
 /* This example creates a subclass of Node and uses std::bind() to register a
@@ -48,8 +51,11 @@ struct IMUdata {
     float temp;
 };
 
+
+
 struct EncoderData {
     char  mark[4];
+    int   msec;
     int   counts[2];
 };
 
@@ -57,15 +63,17 @@ int little_int(BYTE* dt, int idx){
     return int(dt[idx] + 256 * (int)dt[idx + 1]);
 }
 
-void add(const std::shared_ptr<cart_interfaces::srv::MotorPWM::Request> request,
+void setMotorPWM(const std::shared_ptr<cart_interfaces::srv::MotorPWM::Request> request,
           std::shared_ptr<cart_interfaces::srv::MotorPWM::Response>      /*response*/){
-  RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request\nleft: %f" " right: %f",
-                request->left, request->right);
+
+    (void)request;
+    // RCLCPP_INFO(rclcpp::get_logger("rclcpp"), "Incoming request\nleft: %d" " right: %d", request->left, request->right);
 }
 
 class MinimalPublisher : public rclcpp::Node
 {
     int sockfd;
+    bool connected = false;
     BYTE data[1024*8];
     int dataCnt = 0;
 
@@ -85,9 +93,6 @@ public:
     : Node("minimal_publisher"), count_(0)
     {
         publisher_ = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
-
-        timer_ = this->create_wall_timer(
-        500ms, std::bind(&MinimalPublisher::timer_callback, this));
 
         //ソケットの生成
         sockfd = socket(AF_INET, SOCK_STREAM, 0); //アドレスドメイン, ソケットタイプ, プロトコル
@@ -109,8 +114,8 @@ public:
         int sts = connect(sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)); //ソケット, アドレスポインタ, アドレスサイズ
         if(sts == 0){
 
+            connected = true;
             RCLCPP_INFO(this->get_logger(), "connected");
-
         }
         else{
             RCLCPP_INFO(this->get_logger(), "connect error");
@@ -118,15 +123,11 @@ public:
             return;
         }
 
-        //データ送信
-        char s_str[] = "HelloWorld!"; //送信データ格納用
-        int size = send(sockfd, s_str, strlen(s_str) + 1, 0); //送信
+        sendPWM(0, 0);
 
+        timer_ = this->create_wall_timer(500ms, std::bind(&MinimalPublisher::timer_callback, this));
 
-
-        RCLCPP_INFO(this->get_logger(), "send '%d'", size);
-
-        service = this->create_service<cart_interfaces::srv::MotorPWM>("set_motor_pwm", &add);
+        service = this->create_service<cart_interfaces::srv::MotorPWM>("set_motor_pwm", &setMotorPWM);
 
         startTime = clock();
     }
@@ -134,6 +135,34 @@ public:
     ~MinimalPublisher(){
         //ソケットクローズ
         close(sockfd);
+    }
+
+    void sendPWM(short pwm_l, short pwm_r){
+        static short prev_l, prev_r;
+
+        if(prev_l == pwm_l && prev_r == pwm_r){
+            return;
+        }
+
+        char buf[6];
+
+        buf[0] = '\xFF';
+        buf[1] = '\xEE';
+
+        *(short*)(buf + 2) = pwm_l;
+        *(short*)(buf + 4) = pwm_r;
+
+        assert(sizeof(short) == 2);
+ 
+        if(connected){
+
+            send(sockfd, buf, 2 + 2 + 2, 0); //送信
+        }
+
+        RCLCPP_INFO(this->get_logger(), "send PWM %d %d", pwm_l, pwm_r);
+
+        prev_l = pwm_l;
+        prev_r = pwm_r;
     }
 
     void publish_scan(){
@@ -302,7 +331,7 @@ private:
                 data_len = sizeof(EncoderData);
                 memcpy(&enc_dt, data + idx, data_len);
 
-                RCLCPP_INFO(this->get_logger(), "enc: %d %d", enc_dt.counts[0], enc_dt.counts[1]);
+                RCLCPP_INFO(this->get_logger(), "enc: %d msec %d %d", enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
                 break;
             }            
             default:
@@ -322,10 +351,24 @@ private:
     size_t count_;
 };
 
+static std::shared_ptr<MinimalPublisher>    node;
+
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<MinimalPublisher>());
+    init_qt(argc, argv);
+
+    node = std::make_shared<MinimalPublisher>();
+    while (true){
+        rclcpp::spin_some(node);
+
+        short pwm_l, pwm_r;
+        
+        process_qt(pwm_l, pwm_r);
+
+        node->sendPWM(pwm_l, pwm_r);
+   }
+    
     rclcpp::shutdown();
     return 0;
 }
