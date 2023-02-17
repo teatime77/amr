@@ -11,6 +11,7 @@
 #define ML_B 33
 
 int encoder_counts[] = { 0, 0 };
+unsigned long prev_time_ms;
 
 void IRAM_ATTR falling_MR_A() {
     encoder_counts[0] += digitalRead(MR_B) == LOW ? 1 : -1;
@@ -20,9 +21,16 @@ void IRAM_ATTR falling_ML_A() {
     encoder_counts[1] += digitalRead(ML_B) == LOW ? 1 : -1;
 }
 
-void get_encoder_counts(int &c1, int &c2){
+void get_encoder_counts(int &msec, int &c1, int &c2){
+    unsigned long time_ms = millis();
+
+    msec = (int)(time_ms - prev_time_ms);
     c1 = encoder_counts[0];
     c2 = encoder_counts[1];
+
+    prev_time_ms = time_ms;
+    encoder_counts[0]   = 0;
+    encoder_counts[1]   = 0;
 }
 
 void motor_setup() {
@@ -49,58 +57,42 @@ void motor_setup() {
     Serial.print("Testing DC Motor...");
 }
 
-void set_speed(int pin_pwm, float speed){
-    analogWrite(pin_pwm, 80 + int((255 - 80) * speed));    
-}
-
-void motor_loop() {
-    int span = 2000;
-    int tick = millis() % (6 * span);
-
+void motor_loop(short pwm_l, short pwm_r) {
     for(int idx = 0; idx < 2; idx++){
 
         int pin1, pin2, pin_pwm;
+        short pwm;
 
         if(idx == 0){
             pin1 = MR_1;
             pin2 = MR_2;
             pin_pwm = MR_PWM;
+            pwm = pwm_r;
         }
         else{
             pin1 = ML_1;
             pin2 = ML_2;
             pin_pwm = ML_PWM;
-
+            pwm = pwm_l;
         }
 
-        if(2 * span <= tick && tick < 3 * span || 5 * span <= tick){
+        if(pwm == 0){
 
             digitalWrite(pin1, LOW);
             digitalWrite(pin2, LOW);
-            set_speed(pin_pwm, 0);
+            analogWrite(pin_pwm, 0);
+        }
+        else if(0 < pwm){
+
+            digitalWrite(pin1, LOW);
+            digitalWrite(pin2, HIGH); 
+            analogWrite(pin_pwm, pwm);
         }
         else{
-
-            if(tick < 2 * span){
-
-                digitalWrite(pin1, LOW);
-                digitalWrite(pin2, HIGH); 
-            }
-            else{
-                tick -= 3 * span;
-
-                digitalWrite(pin1, HIGH);
-                digitalWrite(pin2, LOW); 
-            }
-
-            if(tick < span){
-
-                set_speed(pin_pwm, tick / (float)span);
-            }
-            else{
-
-                set_speed(pin_pwm, (2 * span - tick) / (float)span);
-            }
+            
+            digitalWrite(pin1, HIGH);
+            digitalWrite(pin2, LOW); 
+            analogWrite(pin_pwm, -pwm);
         }
     }
 }
