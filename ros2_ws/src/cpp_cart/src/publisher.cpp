@@ -18,6 +18,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "std_msgs/msg/float32.hpp"
 #include "cart_interfaces/srv/motor_pwm.hpp"
 
 void init_qt(int argc, char * argv[]);
@@ -92,7 +93,9 @@ public:
     MinimalPublisher()
     : Node("minimal_publisher"), count_(0)
     {
-        publisher_ = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
+        scan_pub = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
+        enc_L_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_L", 10);
+        enc_R_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_R", 10);
 
         //ソケットの生成
         sockfd = socket(AF_INET, SOCK_STREAM, 0); //アドレスドメイン, ソケットタイプ, プロトコル
@@ -189,7 +192,7 @@ public:
             scan_msg->ranges[i] = ranges[i];
         }        
 
-        publisher_->publish(*scan_msg);
+        scan_pub->publish(*scan_msg);
 
         RCLCPP_INFO(this->get_logger(), "pub stamp:%d:%d time:%.3lf nRanges:%d FSA-LSA:%d %d", scan_msg->header.stamp.sec, scan_msg->header.stamp.nanosec, scan_msg->scan_time, nRanges, int(prevFSA), int(prevLSA));
 
@@ -331,6 +334,15 @@ private:
                 data_len = sizeof(EncoderData);
                 memcpy(&enc_dt, data + idx, data_len);
 
+                auto msg_R = std_msgs::msg::Float32();
+                auto msg_L = std_msgs::msg::Float32();
+
+                msg_R.data = enc_dt.counts[0] / float(enc_dt.msec);
+                msg_L.data = enc_dt.counts[1] / float(enc_dt.msec);
+ 
+                enc_R_pub->publish(msg_R);
+                enc_L_pub->publish(msg_L);
+
                 RCLCPP_INFO(this->get_logger(), "enc: %d msec %d %d", enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
                 break;
             }            
@@ -345,7 +357,9 @@ private:
     }
 
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr publisher_;
+    rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_L_pub;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_R_pub;
 
     
     size_t count_;
