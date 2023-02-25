@@ -1,6 +1,7 @@
 // #include <QGuiApplication>
 // #include <QMainWindow>
 #include <QApplication>
+#include <QFormLayout>
 #include <QGridLayout>
 #include <QSlider>
 #include <QLabel>
@@ -8,44 +9,43 @@
 
 static QApplication* app;
 static QWidget*      win;
-static QSlider*      pwmL;
-static QSlider*      pwmR;
+static QSlider*      pwmVel;
+static QSlider*      pwmDir;
 
 void init_qt(int argc, char * argv[]){
     app = new QApplication(argc, argv);
     win = new QWidget();
-    win->setWindowTitle("grid_layout");
+    win->setWindowTitle("PWM Velocity & Direction");
+    win->setFixedWidth(800);
 
-    QGridLayout* layout = new QGridLayout;
-    pwmL = new QSlider(Qt::Horizontal);
-    pwmL->setRange(-255, 255);
-    pwmL->setValue(0);
+    QFormLayout* layout = new QFormLayout;  // QGridLayout;
+    pwmVel = new QSlider(Qt::Horizontal);
+    pwmVel->setRange(-255, 255);
+    pwmVel->setValue(0);
+    pwmVel->resize(300, 20);
 
-    pwmR = new QSlider(Qt::Horizontal);
-    pwmR->setRange(-255, 255);
-    pwmR->setValue(0);
+    pwmDir = new QSlider(Qt::Horizontal);
+    pwmDir->setRange(-255, 255);
+    pwmDir->setValue(0);
+    pwmDir->resize(300, 20);
 
 
-    layout->addWidget(new QLabel("PWM Left"), 0, 0, Qt::AlignLeft);
-    layout->addWidget(pwmL, 0, 1, Qt::AlignLeft);
-
-    layout->addWidget(new QLabel("PWM Right"), 1, 0, Qt::AlignLeft);
-    layout->addWidget(pwmR, 1, 1, Qt::AlignLeft);
-
-    //グリッド(表)の周りの隙間の大きさを設定
-    layout->setContentsMargins(20, 10, 20, 10);
-
-    //GUI部品間の間隔を設定
-    layout->setSpacing(5);    
-        
+    layout->addRow(new QLabel("PWM Vel"), pwmVel);
+    layout->addRow(new QLabel("PWM Dir"), pwmDir);
 
     win->setLayout(layout);
     win->show();
 }
 
-void process_qt(short& pwm_l, short& pwm_r){
+void process_qt(int& pwm_l, int& pwm_r){
     app->processEvents();
 
-    pwm_l = pwmL->value();
-    pwm_r = pwmR->value();
+    pwm_l =  pwmVel->value();
+    pwm_r = -pwmVel->value();
+
+    pwm_l += pwmDir->value();
+    pwm_r += pwmDir->value();
+
+    pwm_l = std::max(-255, std::min(255, pwm_l));
+    pwm_r = std::max(-255, std::min(255, pwm_r));
 }

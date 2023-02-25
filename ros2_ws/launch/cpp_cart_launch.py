@@ -18,6 +18,10 @@ def generate_launch_description():
             package='cpp_cart',
             executable='talker',
         ),
+        Node(
+            package='cart_gui',
+            executable='talker',
+        ),
         tf2_node,
         Node(
             package='rviz2',

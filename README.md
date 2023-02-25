@@ -40,7 +40,7 @@ rosdep install -i --from-path src --rosdistro humble -y
 
 cartパッケージをビルドします。
 ```sh
-colcon build --packages-select cpp_cart
+colcon build --symlink-install --packages-select cpp_cart
 ```
 
 cartパッケージの実行に必要な環境変数を読み込みます。
@@ -61,3 +61,68 @@ ros2 launch launch/cpp_cart_launch.py headless:=False
 **Adafruit MPU6050 by Adafruit** をインストールします。
 
 「ライブラリの依存関係をインストール」のダイアログが表示されるので、「全てをインストール」をクリックします。
+
+## NAV2デモ
+
+[Getting Started — Navigation 2 1.0.0 documentation](https://navigation.ros.org/getting_started/index.html#running-the-example)
+
+1. launchする。
+
+```sh
+ros2 launch nav2_bringup tb3_simulation_launch.py headless:=False
+```
+
+2. rviz2の **2D Pose Estimate** をクリック。
+
+3. ドラッグして、初期位置と方向を指定する。<br/>
+ここでLidarが表示されなければ、 1.からやり直す。
+
+4. **Nav2 to Goal** をクリック。
+
+5. ドラッグして、ゴールの位置と方向を指示する。<br/>
+ナビゲーションが開始する。
+
+---
+
+## cpp_cart + rviz2
+
+
+1. launchする。
+
+```sh
+ros2 launch launch/cpp_cart_launch.py
+```
+
+2. ESP32との無線接続を確認する。<br/>
+接続エラーの場合は、 1.からやり直す。
+
+3.  rvizのFixed Frameをbase_linkにする。
+
+4. Addボタンをクリックし、By topicタブでLaserScanを追加する。
+
+5. LaserScanのTopicのReliability Policyで Best Effortを選択する。<br/>
+LaserScanが表示されるのを確認する。
+
+## ros2_control_demos
+
+[ros-controls/ros2_control_demos: This repository aims at providing examples to illustrate ros2_control and ros2_controllers](https://github.com/ros-controls/ros2_control_demos)
+
+
+1. launchする。
+
+```sh
+ros2 launch ros2_control_demo_bringup diffbot.launch.py
+```
+
+2. 速度のコマンドを送る。
+
+```sh
+ros2 topic pub --rate 30 /diffbot_base_controller/cmd_vel_unstamped geometry_msgs/msg/Twist "linear:
+ x: 0.7
+ y: 0.0
+ z: 0.0
+angular:
+ x: 0.0
+ y: 0.0
+ z: 1.0"
+```

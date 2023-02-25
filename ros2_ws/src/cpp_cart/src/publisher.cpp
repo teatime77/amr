@@ -22,7 +22,7 @@
 #include "cart_interfaces/srv/motor_pwm.hpp"
 
 void init_qt(int argc, char * argv[]);
-void process_qt(short& pwm_l, short& pwm_r);
+void process_qt(int& pwm_l, int& pwm_r);
 
 using namespace std::chrono_literals;
 
@@ -52,7 +52,45 @@ struct IMUdata {
     float temp;
 };
 
+const float wheel_separation = 0.2;
 
+void sub(float Vl, float Vr, float& R, float& omega){
+    if(Vl == Vr){
+        R = std::numeric_limits<float>::infinity();
+        omega = 0;
+    }
+    else if(Vl == -Vr){
+        R = 0;
+        omega = Vl / (0.5 * wheel_separation);
+    }
+    else if(Vl == 0){
+        R = 0.5 * wheel_separation;
+        omega = Vr / wheel_separation;
+    }
+    else if(Vr == 0){
+
+        R = 0.5 * wheel_separation;
+        omega = - Vl / wheel_separation;
+    }
+    else{
+
+    }
+}
+
+void ForwardDiffBot(float R, float omega, float dt, float x, float y, float theta, float& x2, float& y2, float& theta2){
+    float ICCx = x - R * sin(theta);
+    float ICCy = y + R * cos(theta);
+
+    float Rx = x - ICCx;
+    float Ry = y - ICCy;
+
+    float omega_dt = omega * dt;
+
+    x2 = cos(omega_dt) * Rx - sin(omega_dt) * Ry + ICCx;
+    y2 = sin(omega_dt) * Rx + cos(omega_dt) * Ry + ICCy;
+
+    theta2 = theta + omega_dt;
+}
 
 struct EncoderData {
     char  mark[4];
@@ -140,7 +178,7 @@ public:
         close(sockfd);
     }
 
-    void sendPWM(short pwm_l, short pwm_r){
+    void sendPWM(int pwm_l, int pwm_r){
         static short prev_l, prev_r;
 
         if(prev_l == pwm_l && prev_r == pwm_r){
@@ -152,8 +190,8 @@ public:
         buf[0] = '\xFF';
         buf[1] = '\xEE';
 
-        *(short*)(buf + 2) = pwm_l;
-        *(short*)(buf + 4) = pwm_r;
+        *(short*)(buf + 2) = (short)pwm_l;
+        *(short*)(buf + 4) = (short)pwm_r;
 
         assert(sizeof(short) == 2);
  
@@ -194,7 +232,7 @@ public:
 
         scan_pub->publish(*scan_msg);
 
-        RCLCPP_INFO(this->get_logger(), "pub stamp:%d:%d time:%.3lf nRanges:%d FSA-LSA:%d %d", scan_msg->header.stamp.sec, scan_msg->header.stamp.nanosec, scan_msg->scan_time, nRanges, int(prevFSA), int(prevLSA));
+        // RCLCPP_INFO(this->get_logger(), "pub stamp:%d:%d time:%.3lf nRanges:%d FSA-LSA:%d %d", scan_msg->header.stamp.sec, scan_msg->header.stamp.nanosec, scan_msg->scan_time, nRanges, int(prevFSA), int(prevLSA));
 
         prevTime = current_time;
     }
@@ -208,7 +246,7 @@ public:
 
         float FSA = (iFSA >> 1) / 64.0;
         float LSA = (iLSA >> 1) / 64.0;
-        RCLCPP_INFO(this->get_logger(), "CT:%X FSA:%d LSA:%d", dt[2], int(FSA), int(LSA));
+        // RCLCPP_INFO(this->get_logger(), "CT:%X FSA:%d LSA:%d", dt[2], int(FSA), int(LSA));
 
         if(LSA <= FSA){
             return;
@@ -321,10 +359,10 @@ private:
                 data_len = sizeof(IMUdata);
                 memcpy(&imu_dt, data + idx, data_len);
 
-                RCLCPP_INFO(this->get_logger(), "acc:(%.1f, %.1f, %.1f) gyro:(%.1f, %.1f, %.1f) temp:%.1f", 
-                    imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, 
-                    imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, 
-                    imu_dt.temp);
+                // RCLCPP_INFO(this->get_logger(), "acc:(%.1f, %.1f, %.1f) gyro:(%.1f, %.1f, %.1f) temp:%.1f", 
+                //     imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, 
+                //     imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, 
+                //     imu_dt.temp);
                 break;
             }            
 
@@ -343,7 +381,7 @@ private:
                 enc_R_pub->publish(msg_R);
                 enc_L_pub->publish(msg_L);
 
-                RCLCPP_INFO(this->get_logger(), "enc: %d msec %d %d", enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
+                // RCLCPP_INFO(this->get_logger(), "enc: %d msec %d %d", enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
                 break;
             }            
             default:
@@ -376,7 +414,7 @@ int main(int argc, char * argv[])
     while (true){
         rclcpp::spin_some(node);
 
-        short pwm_l, pwm_r;
+        int pwm_l, pwm_r;
         
         process_qt(pwm_l, pwm_r);
 
