@@ -37,7 +37,11 @@ void init_qt(int argc, char * argv[]){
     win->show();
 }
 
-void process_qt(int& pwm_l, int& pwm_r){
+void process_qt(){
+    app->processEvents();
+}
+
+void process_qt2(int& pwm_l, int& pwm_r){
     app->processEvents();
 
     pwm_l =  pwmVel->value();

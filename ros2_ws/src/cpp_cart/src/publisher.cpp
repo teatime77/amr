@@ -22,7 +22,7 @@
 #include "cart_interfaces/srv/motor_pwm.hpp"
 
 void init_qt(int argc, char * argv[]);
-void process_qt(int& pwm_l, int& pwm_r);
+void process_qt();
 
 using namespace std::chrono_literals;
 
@@ -33,7 +33,19 @@ using namespace std::chrono_literals;
 #define BYTE    unsigned char
 #endif
 
+#define PULSE_PER_ROUND -907.5625
+#define WHEEL_RADIUS    0.03
+
 #define RANGES_SIZE     1024 * 8
+#define MIN_PWM         60
+
+const float Kp = 200.0;
+float CartVel = 0;
+float VelR;
+float VelL;
+int   pwmL = 0;
+int   pwmR = 0;
+bool  timer_called = false;
 
 enum DataType {
     ydlidar,
@@ -53,6 +65,8 @@ struct IMUdata {
 };
 
 const float wheel_separation = 0.2;
+
+int encR, encL;
 
 void sub(float Vl, float Vr, float& R, float& omega){
     if(Vl == Vr){
@@ -126,6 +140,7 @@ class MinimalPublisher : public rclcpp::Node
     clock_t prevTime;
 
     rclcpp::Service<cart_interfaces::srv::MotorPWM>::SharedPtr service;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr wheelVecR_sub;
 
 public:
     MinimalPublisher()
@@ -134,6 +149,8 @@ public:
         scan_pub = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
         enc_L_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_L", 10);
         enc_R_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_R", 10);
+
+        wheelVecR_sub = this->create_subscription<std_msgs::msg::Float32>("cartVel", 10, std::bind(&MinimalPublisher::cartVel_callback, this, std::placeholders::_1));
 
         //ソケットの生成
         sockfd = socket(AF_INET, SOCK_STREAM, 0); //アドレスドメイン, ソケットタイプ, プロトコル
@@ -199,8 +216,6 @@ public:
 
             send(sockfd, buf, 2 + 2 + 2, 0); //送信
         }
-
-        RCLCPP_INFO(this->get_logger(), "send PWM %d %d", pwm_l, pwm_r);
 
         prev_l = pwm_l;
         prev_r = pwm_r;
@@ -321,8 +336,14 @@ public:
     }
 
 private:
+    void cartVel_callback(const std_msgs::msg::Float32 & msg) const{
+        CartVel = msg.data;
+        RCLCPP_INFO(this->get_logger(), "cart vel:%.2f", CartVel);
+    }
+
     void timer_callback()
     {
+        timer_called = true;
 
         //データ受信
         char buf[1024*8]; //受信データ格納用
@@ -372,11 +393,31 @@ private:
                 data_len = sizeof(EncoderData);
                 memcpy(&enc_dt, data + idx, data_len);
 
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                enc_dt.counts[0] *= -1;
+                enc_dt.counts[1] *= -1;
+                // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                encR += enc_dt.counts[0];
+                encL += enc_dt.counts[1];
+
                 auto msg_R = std_msgs::msg::Float32();
                 auto msg_L = std_msgs::msg::Float32();
 
-                msg_R.data = enc_dt.counts[0] / float(enc_dt.msec);
-                msg_L.data = enc_dt.counts[1] / float(enc_dt.msec);
+                // 変位角(radian)
+                float thetaR = - 2.0 * M_PI * enc_dt.counts[0] / PULSE_PER_ROUND;
+                float thetaL =   2.0 * M_PI * enc_dt.counts[1] / PULSE_PER_ROUND;
+
+                // 角速度(radian/S)
+                float omegaR = 1000.0 * thetaR / float(enc_dt.msec);
+                float omegaL = 1000.0 * thetaL / float(enc_dt.msec);
+
+                // 速度(m/S)
+                VelR = WHEEL_RADIUS * omegaR;
+                VelL = WHEEL_RADIUS * omegaL;
+
+                msg_R.data = VelR;
+                msg_L.data = VelL;
  
                 enc_R_pub->publish(msg_R);
                 enc_L_pub->publish(msg_L);
@@ -405,6 +446,23 @@ private:
 
 static std::shared_ptr<MinimalPublisher>    node;
 
+int calcPWM(int current_pwm, float current_vel, float target_vel){
+    if(target_vel == 0){
+        return 0;
+    }
+
+    float   P = target_vel - current_vel;
+
+    int pwm = current_pwm + int(Kp * P);
+    if(0 < target_vel){
+        return std::max(MIN_PWM, std::min(255, pwm));
+    }
+    else{
+        
+        return std::max(-255, std::min(-MIN_PWM, pwm));
+    }
+}
+
 int main(int argc, char * argv[])
 {
     rclcpp::init(argc, argv);
@@ -413,12 +471,19 @@ int main(int argc, char * argv[])
     node = std::make_shared<MinimalPublisher>();
     while (true){
         rclcpp::spin_some(node);
+        process_qt();
 
-        int pwm_l, pwm_r;
-        
-        process_qt(pwm_l, pwm_r);
+        if(timer_called){
+            timer_called = false;
 
-        node->sendPWM(pwm_l, pwm_r);
+            pwmR = calcPWM(pwmR, VelR, CartVel);
+            pwmL = calcPWM(pwmL, VelL, CartVel);
+
+            RCLCPP_INFO(node->get_logger(), "R PWM:%d vel:%.2f target:%.2f", pwmR, VelR, CartVel);
+            RCLCPP_INFO(node->get_logger(), "L PWM:%d vel:%.2f target:%.2f", pwmL, VelL, CartVel);
+
+            node->sendPWM(pwmL, -pwmR);
+        }
    }
     
     rclcpp::shutdown();
