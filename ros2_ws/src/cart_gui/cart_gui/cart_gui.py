@@ -2,6 +2,7 @@ import rclpy
 from rclpy.node import Node
 
 from std_msgs.msg import String, Float32
+from sensor_msgs.msg import Imu
 
 import sys
 import numpy as np
@@ -12,6 +13,9 @@ import matplotlib.pyplot as plt
  
 encoderR_data = []
 encoderL_data = []
+acc_x = []
+acc_y = []
+# acc_z = []
 
 wheel_radius = 0.3
 
@@ -64,29 +68,43 @@ class MinimalPublisher(Node):
 
         self.encoderR_sub = self.create_subscription(Float32, '/encoder_R', self.encoderR_callback, 10)
         self.encoderL_sub = self.create_subscription(Float32, '/encoder_L', self.encoderL_callback, 10)
+        self.imu_sub = self.create_subscription(Imu, '/imu', self.imu_callback, 10)
 
         self.encoderR_sub
         self.encoderL_sub
 
-        self.fig, self.ax = plt.subplots(1, 1)
+        self.fig = plt.figure()
+        self.ax1 = self.fig.add_subplot(2, 1, 1)
+        self.ax2 = self.fig.add_subplot(2, 1, 2)
+
+        self.ax1.set_ylim((0, 0))
+        self.ax2.set_ylim((0, 0))
 
         x = np.arange(-np.pi, np.pi, 0.1)
         y = np.sin(x)        
-        self.lines1, = self.ax.plot([0, 1], [0, 1])
-        self.lines2, = self.ax.plot([0, 1], [0, 1])
+        self.lines_Vr, = self.ax1.plot([0, 1], [0, 1], label='Vr')
+        self.lines_Vl, = self.ax1.plot([0, 1], [0, 1], label='Vl')
 
-        self.min_y = 0
-        self.max_y = 0
+        self.imu_lines_acc_x, = self.ax2.plot([0, 1], [0, 1], label='acc x')
+        self.imu_lines_acc_y, = self.ax2.plot([0, 1], [0, 1], label='acc y')
+        # self.imu_lines_acc_z, = self.ax2.plot([0, 1], [0, 1], label='acc z')
 
-    def draw_lines(self, lines, data):
+        self.acc_x_offset = 0
+        self.acc_y_offset = 0
+
+        plt.legend()
+
+    def draw_lines(self, ax, lines, data):
         x = list(range(len(data)))
         y = np.array(data)
 
-        self.min_y = min(self.min_y, y.min() * 1.1)
-        self.max_y = max(self.max_y, y.max() * 1.1)
+        (min_y, max_y) = ax.get_ylim()
 
-        self.ax.set_xlim((0, len(data)))
-        self.ax.set_ylim((self.min_y, self.max_y))
+        min_y = min(min_y, y.min() * 1.1)
+        max_y = max(max_y, y.max() * 1.1)
+
+        ax.set_xlim((0, len(data)))
+        ax.set_ylim((min_y, max_y))
 
         lines.set_data(x, y)
 
@@ -100,12 +118,30 @@ class MinimalPublisher(Node):
     def encoderR_callback(self, msg):
         encoderR_data.append(msg.data)
 
-        self.draw_lines(self.lines1, encoderR_data)
+        self.draw_lines(self.ax1, self.lines_Vr, encoderR_data)
 
     def encoderL_callback(self, msg):
         encoderL_data.append(msg.data)
 
-        self.draw_lines(self.lines2, encoderL_data)
+        self.draw_lines(self.ax1, self.lines_Vl, encoderL_data)
+
+    def imu_callback(self, msg):
+        global acc_x, acc_y
+
+        if len(acc_x) == 50:
+            self.acc_x_offset = sum(acc_x) / len(acc_x)
+            self.acc_y_offset = sum(acc_y) / len(acc_y)
+
+            acc_x = [x - self.acc_x_offset for x in acc_x]
+            acc_y = [y - self.acc_y_offset for y in acc_y]
+
+            self.ax2.set_ylim((0, 0))
+
+        acc_x.append(msg.linear_acceleration.x - self.acc_x_offset)
+        acc_y.append(msg.linear_acceleration.y - self.acc_y_offset)
+
+        self.draw_lines(self.ax2, self.imu_lines_acc_x, acc_x)
+        self.draw_lines(self.ax2, self.imu_lines_acc_y, acc_y)
 
     def listener_callback(self, msg):
         # self.get_logger().info('I heard: "%s"' % msg.data)

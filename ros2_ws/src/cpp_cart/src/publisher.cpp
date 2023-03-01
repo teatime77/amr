@@ -18,6 +18,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
+#include "sensor_msgs/msg/imu.hpp"
 #include "std_msgs/msg/float32.hpp"
 #include "cart_interfaces/srv/motor_pwm.hpp"
 
@@ -139,6 +140,16 @@ class MinimalPublisher : public rclcpp::Node
     clock_t startTime;
     clock_t prevTime;
 
+    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub;
+    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
+
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_L_pub;
+    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_R_pub;
+
+
+    size_t count_;
+
     rclcpp::Service<cart_interfaces::srv::MotorPWM>::SharedPtr service;
     rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr wheelVecR_sub;
 
@@ -147,6 +158,8 @@ public:
     : Node("minimal_publisher"), count_(0)
     {
         scan_pub = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
+        imu_pub = this->create_publisher<sensor_msgs::msg::Imu>("imu", 10);
+
         enc_L_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_L", 10);
         enc_R_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_R", 10);
 
@@ -380,6 +393,16 @@ private:
                 data_len = sizeof(IMUdata);
                 memcpy(&imu_dt, data + idx, data_len);
 
+                auto imu_msg = std::make_shared<sensor_msgs::msg::Imu>();
+
+                imu_msg->header.frame_id    = "map";
+                // imu_msg->header.stamp       = ros2::Time::now();
+                imu_msg->linear_acceleration.x  = imu_dt.acc_y;
+                imu_msg->linear_acceleration.y  = imu_dt.acc_z;
+                imu_msg->linear_acceleration.z  = imu_dt.acc_x;
+
+                imu_pub->publish(*imu_msg);
+
                 // RCLCPP_INFO(this->get_logger(), "acc:(%.1f, %.1f, %.1f) gyro:(%.1f, %.1f, %.1f) temp:%.1f", 
                 //     imu_dt.acc_x, imu_dt.acc_y, imu_dt.acc_z, 
                 //     imu_dt.gyro_x, imu_dt.gyro_y, imu_dt.gyro_z, 
@@ -434,14 +457,6 @@ private:
             dataCnt -= idx + data_len;
         }
     }
-
-    rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub;
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_L_pub;
-    rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_R_pub;
-
-    
-    size_t count_;
 };
 
 static std::shared_ptr<MinimalPublisher>    node;
