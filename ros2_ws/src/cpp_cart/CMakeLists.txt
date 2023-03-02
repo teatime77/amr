@@ -12,12 +12,15 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(cart_interfaces REQUIRED)
 find_package(Qt5Widgets REQUIRED)
 
 add_executable(talker src/publisher.cpp src/cart_qt.cpp)
-ament_target_dependencies(talker rclcpp sensor_msgs cart_interfaces Qt5Widgets)
+ament_target_dependencies(talker rclcpp tf2 tf2_geometry_msgs sensor_msgs nav_msgs cart_interfaces Qt5Widgets)
 
 install(TARGETS
   talker

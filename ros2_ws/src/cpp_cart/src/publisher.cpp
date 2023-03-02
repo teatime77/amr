@@ -17,6 +17,10 @@
 
 
 #include "rclcpp/rclcpp.hpp"
+#include "tf2/utils.h"
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "geometry_msgs/msg/quaternion.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/laser_scan.hpp"
 #include "sensor_msgs/msg/imu.hpp"
 #include "std_msgs/msg/float32.hpp"
@@ -42,6 +46,9 @@ using namespace std::chrono_literals;
 
 const float Kp = 200.0;
 float CartVel = 0;
+float CartX = 0;
+float CartY = 0;
+float CartTheta = 0;
 float VelR;
 float VelL;
 int   pwmL = 0;
@@ -69,42 +76,42 @@ const float wheel_separation = 0.2;
 
 int encR, encL;
 
-void sub(float Vl, float Vr, float& R, float& omega){
-    if(Vl == Vr){
+void DifferentialDriveKinematics(float& R, float& omega){
+    if(VelL == VelR){
         R = std::numeric_limits<float>::infinity();
         omega = 0;
     }
-    else if(Vl == -Vr){
+    else if(VelL == -VelR){
         R = 0;
-        omega = Vl / (0.5 * wheel_separation);
+        omega = VelL / (0.5 * wheel_separation);
     }
-    else if(Vl == 0){
+    else if(VelL == 0){
         R = 0.5 * wheel_separation;
-        omega = Vr / wheel_separation;
+        omega = VelR / wheel_separation;
     }
-    else if(Vr == 0){
+    else if(VelR == 0){
 
         R = 0.5 * wheel_separation;
-        omega = - Vl / wheel_separation;
+        omega = - VelL / wheel_separation;
     }
     else{
 
+        R = 0.5 * wheel_separation * (VelL + VelR) / (VelR - VelL);
+        omega = (VelR - VelL) / wheel_separation;
     }
 }
 
-void ForwardDiffBot(float R, float omega, float dt, float x, float y, float theta, float& x2, float& y2, float& theta2){
-    float ICCx = x - R * sin(theta);
-    float ICCy = y + R * cos(theta);
+void ForwardDiffBot(float R, float omega, float dt_sec, float& new_x, float& new_y){
+    float ICCx = CartX - R * sin(CartTheta);
+    float ICCy = CartY + R * cos(CartTheta);
 
-    float Rx = x - ICCx;
-    float Ry = y - ICCy;
+    float Rx = CartX - ICCx;
+    float Ry = CartY - ICCy;
 
-    float omega_dt = omega * dt;
+    float omega_dt = omega * dt_sec;
 
-    x2 = cos(omega_dt) * Rx - sin(omega_dt) * Ry + ICCx;
-    y2 = sin(omega_dt) * Rx + cos(omega_dt) * Ry + ICCy;
-
-    theta2 = theta + omega_dt;
+    new_x = cos(omega_dt) * Rx - sin(omega_dt) * Ry + ICCx;
+    new_y = sin(omega_dt) * Rx + cos(omega_dt) * Ry + ICCy;
 }
 
 struct EncoderData {
@@ -143,6 +150,7 @@ class MinimalPublisher : public rclcpp::Node
     rclcpp::TimerBase::SharedPtr timer_;
     rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr scan_pub;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr imu_pub;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub;
 
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_L_pub;
     rclcpp::Publisher<std_msgs::msg::Float32>::SharedPtr enc_R_pub;
@@ -158,7 +166,8 @@ public:
     : Node("minimal_publisher"), count_(0)
     {
         scan_pub = this->create_publisher<sensor_msgs::msg::LaserScan>("scan", rclcpp::SensorDataQoS());
-        imu_pub = this->create_publisher<sensor_msgs::msg::Imu>("imu", 10);
+        imu_pub = this->create_publisher<sensor_msgs::msg::Imu>("/demo/imu", 10);
+        odom_pub = this->create_publisher<nav_msgs::msg::Odometry>("/demo/odom", 10);
 
         enc_L_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_L", 10);
         enc_R_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_R", 10);
@@ -349,6 +358,49 @@ public:
     }
 
 private:
+    void publishOdom(float dt_sec){
+        float   R;
+        float   omega;
+
+        DifferentialDriveKinematics(R, omega);
+
+        float new_x, new_y;
+        ForwardDiffBot(R, omega, dt_sec, new_x, new_y);
+
+        float vx = (new_x - CartX) / dt_sec;
+        float vy = (new_y - CartY) / dt_sec;                
+
+        CartX = new_x;
+        CartY = new_y;
+        CartTheta += omega * dt_sec;
+
+        auto odom_msg = std::make_shared<nav_msgs::msg::Odometry>();
+
+        tf2::Quaternion odom_quat;
+        odom_quat.setRPY(0, 0, CartTheta);
+
+        // navigation/Tutorials/RobotSetup/Odom - ROS Wiki
+        //      http://wiki.ros.org/navigation/Tutorials/RobotSetup/Odom/
+        //next, we'll publish the odometry message over ROS
+        odom_msg->header.stamp = this->now();
+        odom_msg->header.frame_id = "odom";
+
+        //set the position
+        odom_msg->pose.pose.position.x = CartX;
+        odom_msg->pose.pose.position.y = CartY;
+        odom_msg->pose.pose.position.z = 0.0;
+
+        odom_msg->pose.pose.orientation = tf2::toMsg(odom_quat);
+
+        //set the velocity
+        odom_msg->child_frame_id = "base_link";
+        odom_msg->twist.twist.linear.x = vx;
+        odom_msg->twist.twist.linear.y = vy;
+        odom_msg->twist.twist.angular.z = omega;
+
+        odom_pub->publish(*odom_msg);
+    }
+
     void cartVel_callback(const std_msgs::msg::Float32 & msg) const{
         CartVel = msg.data;
         RCLCPP_INFO(this->get_logger(), "cart vel:%.2f", CartVel);
@@ -444,6 +496,9 @@ private:
  
                 enc_R_pub->publish(msg_R);
                 enc_L_pub->publish(msg_L);
+
+                float dt_sec = 0.001 * enc_dt.msec;
+                publishOdom(dt_sec);
 
                 // RCLCPP_INFO(this->get_logger(), "enc: %d msec %d %d", enc_dt.msec, enc_dt.counts[0], enc_dt.counts[1]);
                 break;
