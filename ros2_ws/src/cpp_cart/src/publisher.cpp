@@ -46,6 +46,7 @@ using namespace std::chrono_literals;
 
 const float Kp = 200.0;
 float CartVel = 0;
+float CartDir = 0;
 float CartX = 0;
 float CartY = 0;
 float CartTheta = 0;
@@ -102,16 +103,26 @@ void DifferentialDriveKinematics(float& R, float& omega){
 }
 
 void ForwardDiffBot(float R, float omega, float dt_sec, float& new_x, float& new_y){
-    float ICCx = CartX - R * sin(CartTheta);
-    float ICCy = CartY + R * cos(CartTheta);
+    if(std::isinf(R)){
 
-    float Rx = CartX - ICCx;
-    float Ry = CartY - ICCy;
+        assert(VelL == VelR);
 
-    float omega_dt = omega * dt_sec;
+        new_x = CartX + VelL * dt_sec;
+        new_y = CartY + VelL * dt_sec;
+    }
+    else{
 
-    new_x = cos(omega_dt) * Rx - sin(omega_dt) * Ry + ICCx;
-    new_y = sin(omega_dt) * Rx + cos(omega_dt) * Ry + ICCy;
+        float ICCx = CartX - R * sin(CartTheta);
+        float ICCy = CartY + R * cos(CartTheta);
+
+        float Rx = CartX - ICCx;
+        float Ry = CartY - ICCy;
+
+        float omega_dt = omega * dt_sec;
+
+        new_x = cos(omega_dt) * Rx - sin(omega_dt) * Ry + ICCx;
+        new_y = sin(omega_dt) * Rx + cos(omega_dt) * Ry + ICCy;
+    }
 }
 
 struct EncoderData {
@@ -159,7 +170,8 @@ class MinimalPublisher : public rclcpp::Node
     size_t count_;
 
     rclcpp::Service<cart_interfaces::srv::MotorPWM>::SharedPtr service;
-    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr wheelVecR_sub;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr cartVel_sub;
+    rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr cartDir_sub;
 
 public:
     MinimalPublisher()
@@ -172,7 +184,8 @@ public:
         enc_L_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_L", 10);
         enc_R_pub = this->create_publisher<std_msgs::msg::Float32>("encoder_R", 10);
 
-        wheelVecR_sub = this->create_subscription<std_msgs::msg::Float32>("cartVel", 10, std::bind(&MinimalPublisher::cartVel_callback, this, std::placeholders::_1));
+        cartVel_sub = this->create_subscription<std_msgs::msg::Float32>("cartVel", 10, std::bind(&MinimalPublisher::cartVel_callback, this, std::placeholders::_1));
+        cartDir_sub = this->create_subscription<std_msgs::msg::Float32>("cartDir", 10, std::bind(&MinimalPublisher::cartDir_callback, this, std::placeholders::_1));
 
         //ソケットの生成
         sockfd = socket(AF_INET, SOCK_STREAM, 0); //アドレスドメイン, ソケットタイプ, プロトコル
@@ -364,11 +377,13 @@ private:
 
         DifferentialDriveKinematics(R, omega);
 
-        float new_x, new_y;
+        float new_x, new_y;        
+
         ForwardDiffBot(R, omega, dt_sec, new_x, new_y);
 
         float vx = (new_x - CartX) / dt_sec;
         float vy = (new_y - CartY) / dt_sec;                
+        // RCLCPP_INFO(this->get_logger(), "odom: dt:%.2f x:%.2f %.2f vx:%.2f", dt_sec, new_x, CartX, vx);
 
         CartX = new_x;
         CartY = new_y;
@@ -404,6 +419,18 @@ private:
     void cartVel_callback(const std_msgs::msg::Float32 & msg) const{
         CartVel = msg.data;
         RCLCPP_INFO(this->get_logger(), "cart vel:%.2f", CartVel);
+    }
+
+    void cartDir_callback(const std_msgs::msg::Float32 & msg) const{
+        CartDir = msg.data;
+        RCLCPP_INFO(this->get_logger(), "cart dir:%.2f", CartDir);
+
+        if(CartVel == 0 && CartDir == 0){
+
+            CartX = 0;
+            CartY = 0;
+            CartTheta = 0;
+        }
     }
 
     void timer_callback()
@@ -546,11 +573,13 @@ int main(int argc, char * argv[])
         if(timer_called){
             timer_called = false;
 
-            pwmR = calcPWM(pwmR, VelR, CartVel);
-            pwmL = calcPWM(pwmL, VelL, CartVel);
+            float vr = CartVel * (1.0 + CartDir);
+            float vl = CartVel * (1.0 - CartDir);
+            pwmR = calcPWM(pwmR, VelR, vr);
+            pwmL = calcPWM(pwmL, VelL, vl);
 
-            RCLCPP_INFO(node->get_logger(), "R PWM:%d vel:%.2f target:%.2f", pwmR, VelR, CartVel);
-            RCLCPP_INFO(node->get_logger(), "L PWM:%d vel:%.2f target:%.2f", pwmL, VelL, CartVel);
+            // RCLCPP_INFO(node->get_logger(), "R PWM:%d vel:%.2f target:%.2f", pwmR, VelR, vr);
+            // RCLCPP_INFO(node->get_logger(), "L PWM:%d vel:%.2f target:%.2f", pwmL, VelL, vl);
 
             node->sendPWM(pwmL, -pwmR);
         }

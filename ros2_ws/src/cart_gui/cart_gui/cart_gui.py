@@ -3,6 +3,7 @@ from rclpy.node import Node
 
 from std_msgs.msg import String, Float32
 from sensor_msgs.msg import Imu
+from nav_msgs.msg import Odometry
 
 import sys
 import numpy as np
@@ -15,7 +16,9 @@ encoderR_data = []
 encoderL_data = []
 acc_x = []
 acc_y = []
-# acc_z = []
+
+vel_x = []
+vel_y = []
 
 wheel_radius = 0.3
 
@@ -34,11 +37,13 @@ class MainWindow(QWidget):
         self.pwmVel.valueChanged.connect(node.cartVelChanged)
 
         self.pwmDir = QSlider(Qt.Orientation.Horizontal)
-        self.pwmDir.setRange(-255, 255)
+        self.pwmDir.setRange(-100, 100)
         self.pwmDir.setValue(0)
         self.pwmDir.resize(300, 20)
+        self.pwmDir.valueChanged.connect(node.cartDirChanged)
 
-        self.btn = QPushButton('Hello World PyQt5', self) # ボタンウィジェット作成
+        self.btn = QPushButton('Stop', self)
+        self.btn.clicked.connect(node.stopClicked)
 
         velR = QSpinBox(minimum=1, maximum=100, value=20)
         velL = QSpinBox(minimum=1, maximum=100, value=20)
@@ -62,32 +67,40 @@ class MinimalPublisher(Node):
         super().__init__('minimal_publisher')
 
         self.cartVel_pub = self.create_publisher(Float32, 'cartVel', 10)
+        self.cartDir_pub = self.create_publisher(Float32, 'cartDir', 10)
 
         timer_period = 0.5  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
         self.encoderR_sub = self.create_subscription(Float32, '/encoder_R', self.encoderR_callback, 10)
         self.encoderL_sub = self.create_subscription(Float32, '/encoder_L', self.encoderL_callback, 10)
-        self.imu_sub = self.create_subscription(Imu, '/imu', self.imu_callback, 10)
+        self.imu_sub = self.create_subscription(Imu, '/demo/imu', self.imu_callback, 10)
+        self.odom_sub = self.create_subscription(Odometry, '/demo/odom', self.odom_callback, 10)
 
         self.encoderR_sub
         self.encoderL_sub
 
         self.fig = plt.figure()
-        self.ax1 = self.fig.add_subplot(2, 1, 1)
-        self.ax2 = self.fig.add_subplot(2, 1, 2)
 
+        self.ax1 = self.fig.add_subplot(2, 1, 1)
         self.ax1.set_ylim((0, 0))
-        self.ax2.set_ylim((0, 0))
 
         x = np.arange(-np.pi, np.pi, 0.1)
         y = np.sin(x)        
         self.lines_Vr, = self.ax1.plot([0, 1], [0, 1], label='Vr')
         self.lines_Vl, = self.ax1.plot([0, 1], [0, 1], label='Vl')
+        self.lines_Vx, = self.ax1.plot([0, 1], [0, 1], label='Vx')
+        self.lines_Vy, = self.ax1.plot([0, 1], [0, 1], label='Vy')
+
+        plt.legend()
+
+        self.ax2 = self.fig.add_subplot(2, 1, 2)
+
+        self.ax2.set_ylim((0, 0))
+
 
         self.imu_lines_acc_x, = self.ax2.plot([0, 1], [0, 1], label='acc x')
         self.imu_lines_acc_y, = self.ax2.plot([0, 1], [0, 1], label='acc y')
-        # self.imu_lines_acc_z, = self.ax2.plot([0, 1], [0, 1], label='acc z')
 
         self.acc_x_offset = 0
         self.acc_y_offset = 0
@@ -114,6 +127,17 @@ class MinimalPublisher(Node):
         msg = Float32()
         msg.data = cart_vel
         self.cartVel_pub.publish(msg)        
+
+    def cartDirChanged(self):
+        cart_dir = 0.001 * main_window.pwmDir.value()
+
+        msg = Float32()
+        msg.data = cart_dir
+        self.cartDir_pub.publish(msg)        
+
+    def stopClicked(self):
+        main_window.pwmVel.setValue(0)
+        main_window.pwmDir.setValue(0)
 
     def encoderR_callback(self, msg):
         encoderR_data.append(msg.data)
@@ -143,6 +167,15 @@ class MinimalPublisher(Node):
         self.draw_lines(self.ax2, self.imu_lines_acc_x, acc_x)
         self.draw_lines(self.ax2, self.imu_lines_acc_y, acc_y)
 
+    def odom_callback(self, msg):
+        vel_x.append(msg.twist.twist.linear.x)
+        vel_y.append(msg.twist.twist.linear.y)
+
+        # self.get_logger().info('odom: %.2f %.2f' % (msg.twist.twist.linear.x, msg.twist.twist.linear.y))
+
+        self.draw_lines(self.ax1, self.lines_Vx, vel_x)
+        self.draw_lines(self.ax1, self.lines_Vy, vel_y)
+
     def listener_callback(self, msg):
         # self.get_logger().info('I heard: "%s"' % msg.data)
         pass
@@ -150,9 +183,6 @@ class MinimalPublisher(Node):
 
 
     def timer_callback(self):
-        pass
-
-    def pushed_button1(self):
         pass
 
 def main(args=None):
@@ -165,8 +195,6 @@ def main(args=None):
     minimal_publisher = MinimalPublisher()
 
     main_window = MainWindow(minimal_publisher) #ウィンドウクラスのオブジェクト生成
-
-    main_window.btn.clicked.connect(minimal_publisher.pushed_button1)
 
     main_window.show() #ウィンドウの表示
 
