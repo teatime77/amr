@@ -475,7 +475,7 @@ private:
                 auto imu_msg = std::make_shared<sensor_msgs::msg::Imu>();
 
                 imu_msg->header.frame_id    = "map";
-                // imu_msg->header.stamp       = ros2::Time::now();
+                imu_msg->header.stamp       = this->now();
                 imu_msg->linear_acceleration.x  = imu_dt.acc_y;
                 imu_msg->linear_acceleration.y  = imu_dt.acc_z;
                 imu_msg->linear_acceleration.z  = imu_dt.acc_x;

@@ -83,7 +83,7 @@ class MinimalPublisher(Node):
         self.fig = plt.figure()
 
         self.ax1 = self.fig.add_subplot(2, 1, 1)
-        self.ax1.set_ylim((0, 0))
+        self.ax1.set_ylim((-sys.float_info.min, sys.float_info.min))
 
         x = np.arange(-np.pi, np.pi, 0.1)
         y = np.sin(x)        
@@ -96,7 +96,7 @@ class MinimalPublisher(Node):
 
         self.ax2 = self.fig.add_subplot(2, 1, 2)
 
-        self.ax2.set_ylim((0, 0))
+        self.ax2.set_ylim((-sys.float_info.min, sys.float_info.min))
 
 
         self.imu_lines_acc_x, = self.ax2.plot([0, 1], [0, 1], label='acc x')
@@ -159,7 +159,7 @@ class MinimalPublisher(Node):
             acc_x = [x - self.acc_x_offset for x in acc_x]
             acc_y = [y - self.acc_y_offset for y in acc_y]
 
-            self.ax2.set_ylim((0, 0))
+            self.ax2.set_ylim((-sys.float_info.min, sys.float_info.min))
 
         acc_x.append(msg.linear_acceleration.x - self.acc_x_offset)
         acc_y.append(msg.linear_acceleration.y - self.acc_y_offset)
